@@ -26,6 +26,7 @@
   --good:#58c48a; --bad:#f0857d; color-scheme:dark }
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
 .wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 40px;display:flex;flex-direction:column;gap:18px}
 .bar{background:var(--navy);color:var(--on-navy)}
@@ -132,14 +133,15 @@ tr:last-child td{border-bottom:0}
   var FN=['Omar','Layla','Yusuf','Noor','Khalid','Sara','Hassan','Maya','Tariq','Dina','Faisal','Rana','Sami','Hala','Adel','Lina','Ravi','Priya','Daniel','Elena','Marco','Aisha','Karim','Salma','Nabil','Joana','Imran','Farah','Ziad','Reem'];
   var LN=['Haddad','Rahman','Nasser','Farouk','Khoury','Aziz','Saleh','Mansour','Qureshi','Darwish','Sharma','Costa','Bakr','Hamdan','Iyer','Suleiman','Malik','Rossi','Yilmaz','Fernandes','Jaber','Zaman','Petrov','Odeh'];
   function addM(d,m){return new Date(d.getFullYear(),d.getMonth()+m,d.getDate())}
-  var EMP=[];
+  var EMP=[],USED={};
   for(var i=0;i<260;i++){
     var r=R(),acc=0,dep=DEPS[0];
     for(var k=0;k<DEPS.length;k++){acc+=DEPS[k][1];if(r<acc){dep=DEPS[k];break}}
     var span=92, back=Math.floor(Math.pow(R(),1.5)*span);          // more recent hires than old ones
     var hire=new Date(2026,8-back,1+Math.floor(R()*27)), term=null;
     if(R()<dep[2]*1.6){var t=addM(hire,4+Math.floor(R()*38));t.setDate(1+Math.floor(R()*27));if(t<REF)term=t}
-    EMP.push({name:pick(FN)+' '+pick(LN),dep:dep[0],loc:pick(LOCS),hire:hire,term:term});
+    var nm;do{nm=pick(FN)+' '+pick(LN)}while(USED[nm]);USED[nm]=1;
+    EMP.push({name:nm,dep:dep[0],loc:pick(LOCS),hire:hire,term:term});
   }
 
   // ---------- calculations ----------
