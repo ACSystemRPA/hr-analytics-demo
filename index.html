@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR Analytics Prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: app bar + filter row, KPI strip, 2x2 chart grid; a chart segment opens a second "detail" screen. */
+:root{
+  --bg:#f4f7fb; --surface:#ffffff; --ink:#0d1b36; --ink-2:#4a5878; --ink-3:#7a869f;
+  --line:#dde4ef; --navy:#0b2a66; --on-navy:#ffffff; --on-navy-2:#c5d2ec;
+  --accent:#1d63d6; --accent-soft:#e3ecfb; --gold:#b98600; --track:#edf1f7;
+  --good:#1a7f4b; --bad:#b93a32;
+  --display:"Sora","Segoe UI",system-ui,sans-serif; --body:"Figtree","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0a1222; --surface:#121c31; --ink:#e8eefb; --ink-2:#a9b6d2; --ink-3:#7f8dab;
+  --line:#243150; --navy:#0e2350; --on-navy:#ffffff; --on-navy-2:#b4c3e3;
+  --accent:#6ea2f5; --accent-soft:#1a2c52; --gold:#f1c64a; --track:#1a2540;
+  --good:#58c48a; --bad:#f0857d; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0a1222; --surface:#121c31; --ink:#e8eefb; --ink-2:#a9b6d2; --ink-3:#7f8dab;
+  --line:#243150; --navy:#0e2350; --on-navy:#ffffff; --on-navy-2:#b4c3e3;
+  --accent:#6ea2f5; --accent-soft:#1a2c52; --gold:#f1c64a; --track:#1a2540;
+  --good:#58c48a; --bad:#f0857d; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 40px;display:flex;flex-direction:column;gap:18px}
+.bar{background:var(--navy);color:var(--on-navy)}
+.bar-in{max-width:1180px;margin:0 auto;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
+.brand{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.01em}
+.brand small{display:block;font-family:var(--body);font-weight:400;font-size:13px;color:var(--on-navy-2);letter-spacing:0}
+.tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--on-navy-2);color:var(--on-navy);border-radius:999px;padding:4px 10px}
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;padding-top:18px}
+.filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+select{font:inherit;font-size:14px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:170px}
+.asof{margin-left:auto;font-size:13px;color:var(--ink-2)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:4px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.kpi:hover{border-color:var(--accent)}
+.kpi b{font-family:var(--display);font-size:30px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi span{font-size:13px;color:var(--ink-2)}
+.kpi em{font-style:normal;font-size:12px;color:var(--ink-3)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.card h2{font-family:var(--display);font-size:15px;font-weight:600;margin:0;text-wrap:balance}
+.card p{margin:0;font-size:13px;color:var(--ink-3)}
+.wide{grid-column:1/-1}
+
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:132px 1fr 56px;gap:10px;align-items:center;background:none;border:0;padding:5px 6px;border-radius:8px;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+.row:hover{background:var(--accent-soft)}
+.row .nm{font-size:13.5px;color:var(--ink-2);overflow-wrap:anywhere}
+.row .tr{background:var(--track);border-radius:4px;height:14px;overflow:hidden}
+.row .fl{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0;min-width:2px}
+.row .vl{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+
+.cols{display:flex;gap:10px;align-items:flex-end;height:190px}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer}
+.col i{display:block;width:100%;max-width:64px;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.col:hover i{background:var(--gold)}
+.col b{font-size:13.5px;font-variant-numeric:tabular-nums}
+.col span{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+
+.line{position:relative}
+.line svg{display:block;width:100%;height:auto;overflow:visible}
+.line text{font-family:var(--body);font-size:11.5px;fill:var(--ink-3)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-120%);font-variant-numeric:tabular-nums}
+
+.back{align-self:flex-start;font:inherit;font-weight:600;color:var(--accent);background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;margin-top:18px}
+.back:hover{border-color:var(--accent)}
+.dh{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;justify-content:space-between}
+.dh h1{font-family:var(--display);font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.dh span{color:var(--ink-2);font-size:14px}
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;border:1px solid currentColor}
+.pill.a{color:var(--good)} .pill.l{color:var(--bad)}
+.note{font-size:13px;color:var(--ink-3);max-width:70ch}
+
+@media (max-width:860px){ .kpis{grid-template-columns:repeat(2,1fr)} .grid{grid-template-columns:1fr} .asof{margin-left:0;width:100%} }
+@media (max-width:420px){ .row{grid-template-columns:96px 1fr 48px} .kpi b{font-size:25px} select{min-width:0;width:100%} .filters label{flex:1 1 140px} }
+@media (prefers-reduced-motion:no-preference){ .row .fl,.col i{transition:width .35s ease,height .35s ease} }
+</style>
+</head>
+<body style="margin:0">
+
+<header class="bar"><div class="bar-in">
+  <div class="brand">Employee Analytics<small>Interactive prototype for a Power Apps canvas app on SharePoint lists</small></div>
+  <span class="tag">Sample data</span>
+</div></header>
+
+<main class="wrap">
+  <section id="dash" style="display:contents">
+    <div class="filters">
+      <label for="fLoc">Location<select id="fLoc"></select></label>
+      <label for="fDep">Department<select id="fDep"></select></label>
+      <span class="asof" id="asof"></span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid">
+      <div class="card wide"><h2>Headcount trend, last 24 months</h2><div class="line" id="trend"></div></div>
+      <div class="card"><h2>Headcount by department</h2><p>Select a bar to see the employees.</p><div class="rows" id="byDep"></div></div>
+      <div class="card"><h2>Turnover by department, last 12 months</h2><p>Leavers divided by average headcount. Select a bar to see who left.</p><div class="rows" id="toDep"></div></div>
+      <div class="card wide"><h2>Tenure of active employees</h2><p>Years since hire date. Select a column to see the group.</p><div class="cols" id="tenure"></div></div>
+    </div>
+    <p class="note">Every figure on this screen is calculated in the browser from one employee list of 260 fictitious records, the same way the canvas app will calculate them from your SharePoint list. Names and numbers are invented for this demonstration.</p>
+  </section>
+
+  <section id="detail" hidden style="display:contents">
+    <button class="back" id="back" type="button">&larr; Back to dashboard</button>
+    <div class="dh"><h1 id="dTitle"></h1><span id="dCount"></span></div>
+    <div class="tw"><table><thead><tr><th>Employee</th><th>Department</th><th>Location</th><th>Hire date</th><th>Tenure</th><th>Status</th></tr></thead><tbody id="dBody"></tbody></table></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  // ---------- sample data (deterministic) ----------
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  var R=rng(20261012), pick=function(a){return a[Math.floor(R()*a.length)]};
+  var REF=new Date(2026,9,1);
+  var DEPS=[['Operations',.22,.20],['Sales',.19,.27],['Engineering',.21,.13],['Customer Support',.17,.33],['Finance',.11,.10],['Human Resources',.10,.12]];
+  var LOCS=['Riyadh','Riyadh','Riyadh','Jeddah','Jeddah','Dammam'];
+  var FN=['Omar','Layla','Yusuf','Noor','Khalid','Sara','Hassan','Maya','Tariq','Dina','Faisal','Rana','Sami','Hala','Adel','Lina','Ravi','Priya','Daniel','Elena','Marco','Aisha','Karim','Salma','Nabil','Joana','Imran','Farah','Ziad','Reem'];
+  var LN=['Haddad','Rahman','Nasser','Farouk','Khoury','Aziz','Saleh','Mansour','Qureshi','Darwish','Sharma','Costa','Bakr','Hamdan','Iyer','Suleiman','Malik','Rossi','Yilmaz','Fernandes','Jaber','Zaman','Petrov','Odeh'];
+  function addM(d,m){return new Date(d.getFullYear(),d.getMonth()+m,d.getDate())}
+  var EMP=[];
+  for(var i=0;i<260;i++){
+    var r=R(),acc=0,dep=DEPS[0];
+    for(var k=0;k<DEPS.length;k++){acc+=DEPS[k][1];if(r<acc){dep=DEPS[k];break}}
+    var span=92, back=Math.floor(Math.pow(R(),1.5)*span);          // more recent hires than old ones
+    var hire=new Date(2026,8-back,1+Math.floor(R()*27)), term=null;
+    if(R()<dep[2]*1.6){var t=addM(hire,4+Math.floor(R()*38));t.setDate(1+Math.floor(R()*27));if(t<REF)term=t}
+    EMP.push({name:pick(FN)+' '+pick(LN),dep:dep[0],loc:pick(LOCS),hire:hire,term:term});
+  }
+
+  // ---------- calculations ----------
+  var $=function(id){return document.getElementById(id)};
+  var fLoc=$('fLoc'),fDep=$('fDep');
+  function opts(sel,all,list){sel.innerHTML='<option value="">'+all+'</option>'+list.map(function(x){return '<option>'+x+'</option>'}).join('')}
+  opts(fLoc,'All locations',['Riyadh','Jeddah','Dammam']);
+  opts(fDep,'All departments',DEPS.map(function(d){return d[0]}));
+  function scope(){return EMP.filter(function(e){return(!fLoc.value||e.loc===fLoc.value)&&(!fDep.value||e.dep===fDep.value)})}
+  function activeAt(e,d){return e.hire<=d&&(!e.term||e.term>d)}
+  function years(e){return((e.term||REF)-e.hire)/31557600000}
+  function monthEnds(n){var a=[];for(var m=n-1;m>=0;m--)a.push(new Date(REF.getFullYear(),REF.getMonth()-m,0));return a}
+  var Y1=addM(REF,-12);
+  function turnover(list){
+    var leavers=list.filter(function(e){return e.term&&e.term>Y1&&e.term<=REF});
+    var ends=monthEnds(12),avg=ends.reduce(function(s,d){return s+list.filter(function(e){return activeAt(e,d)}).length},0)/12;
+    return {rate:avg?leavers.length/avg*100:0,leavers:leavers};
+  }
+  var fmtD=function(d){return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})};
+  var fmtM=function(d){return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})};
+  var BUCKETS=[['Under 1 yr',0,1],['1 to 2 yrs',1,2],['2 to 3 yrs',2,3],['3 to 5 yrs',3,5],['5 yrs or more',5,99]];
+
+  // ---------- render ----------
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var actions={};
+  function act(fn){var id='a'+Object.keys(actions).length;actions[id]=fn;return id}
+
+  function render(){
+    actions={};
+    var all=scope(), active=all.filter(function(e){return activeAt(e,REF)});
+    var to=turnover(all), hires=all.filter(function(e){return e.hire>Y1&&e.hire<=REF});
+    var ten=active.length?active.reduce(function(s,e){return s+years(e)},0)/active.length:0;
+    $('asof').textContent='Data as of '+fmtD(REF)+' · '+all.length+' records in scope';
+
+    var K=[[active.length,'Active headcount','Employees on the list today',function(){drill('Active employees',active)}],
+           [to.rate.toFixed(1)+'%','Turnover, last 12 months',to.leavers.length+' leavers',function(){drill('Leavers, last 12 months',to.leavers)}],
+           [ten.toFixed(1)+' yrs','Average tenure','Active employees only',function(){drill('Active employees by tenure',active.slice().sort(function(a,b){return years(b)-years(a)}))}],
+           [hires.length,'New hires, last 12 months','Including those who already left',function(){drill('New hires, last 12 months',hires)}]];
+    $('kpis').innerHTML=K.map(function(k){return '<button class="kpi" type="button" data-a="'+act(k[3])+'"><span>'+k[1]+'</span><b>'+k[0]+'</b><em>'+k[2]+'</em></button>'}).join('');
+
+    var deps=DEPS.map(function(d){return d[0]}).filter(function(d){return !fDep.value||d===fDep.value});
+    var hc=deps.map(function(d){var l=active.filter(function(e){return e.dep===d});return{n:d,v:l.length,l:l}}).sort(function(a,b){return b.v-a.v});
+    var mx=Math.max.apply(null,hc.map(function(x){return x.v}).concat(1));
+    $('byDep').innerHTML=hc.map(function(x){return bar(x.n,x.v/mx,x.v,act(function(){drill(x.n+', active employees',x.l)}))}).join('');
+
+    var tr=deps.map(function(d){var t=turnover(all.filter(function(e){return e.dep===d}));return{n:d,v:t.rate,l:t.leavers}}).sort(function(a,b){return b.v-a.v});
+    var mt=Math.max.apply(null,tr.map(function(x){return x.v}).concat(1));
+    $('toDep').innerHTML=tr.map(function(x){return bar(x.n,x.v/mt,x.v.toFixed(1)+'%',act(function(){drill(x.n+', leavers in the last 12 months',x.l)}))}).join('');
+
+    var bk=BUCKETS.map(function(b){var l=active.filter(function(e){var y=years(e);return y>=b[1]&&y<b[2]});return{n:b[0],v:l.length,l:l}});
+    var mb=Math.max.apply(null,bk.map(function(x){return x.v}).concat(1));
+    $('tenure').innerHTML=bk.map(function(x){return '<button class="col" type="button" title="'+x.n+': '+x.v+' employees" data-a="'+act(function(){drill('Tenure '+x.n.toLowerCase(),x.l)})+'"><b>'+x.v+'</b><i style="height:'+(x.v/mb*78)+'%"></i><span>'+x.n+'</span></button>'}).join('');
+
+    trend(all);
+  }
+  function bar(name,frac,val,id){return '<button class="row" type="button" title="'+esc(name)+': '+val+'" data-a="'+id+'"><span class="nm">'+esc(name)+'</span><span class="tr"><span class="fl" style="width:'+(frac*100).toFixed(1)+'%"></span></span><span class="vl">'+val+'</span></button>'}
+
+  function trend(all){
+    var box=$('trend'), W=Math.max(300,box.clientWidth||900), H=W<520?200:230, L=38, Rt=14, T=14, B=26;
+    var ends=monthEnds(24), pts=ends.map(function(d){return{d:d,v:all.filter(function(e){return activeAt(e,d)}).length}});
+    var lo=Math.min.apply(null,pts.map(function(p){return p.v})), hi=Math.max.apply(null,pts.map(function(p){return p.v}));
+    var step=Math.max(1,Math.ceil((hi-lo)/4/5)*5); lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step; if(hi===lo)hi=lo+step;
+    var x=function(i){return L+i*(W-L-Rt)/(pts.length-1)}, y=function(v){return T+(hi-v)*(H-T-B)/(hi-lo)};
+    var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Monthly headcount for the last 24 months">';
+    for(var v=lo;v<=hi;v+=step)s+='<line x1="'+L+'" x2="'+(W-Rt)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(L-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'</text>';
+    var every=W<520?6:3;
+    pts.forEach(function(p,i){if((pts.length-1-i)%every===0)s+='<text x="'+x(i)+'" y="'+(H-6)+'" text-anchor="'+(i===pts.length-1?'end':'middle')+'">'+fmtM(p.d)+'</text>'});
+    var path=pts.map(function(p,i){return(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)}).join(' ');
+    s+='<path d="'+path+' L'+x(pts.length-1)+' '+y(lo)+' L'+x(0)+' '+y(lo)+' Z" fill="var(--accent)" opacity=".12"/>';
+    s+='<path d="'+path+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>';
+    s+='<line id="cx" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--ink-3)" stroke-width="1" visibility="hidden"/>';
+    s+='<circle id="cd" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2" cx="'+x(pts.length-1)+'" cy="'+y(pts[pts.length-1].v)+'"/>';
+    s+='<rect id="hit" x="'+L+'" y="0" width="'+(W-L-Rt)+'" height="'+H+'" fill="transparent"/></svg><div class="tip" id="tip" hidden></div>';
+    box.innerHTML=s;
+    var svg=box.querySelector('svg'), tip=$('tip'), cx=$('cx'), cd=$('cd');
+    function move(ev){
+      var r=svg.getBoundingClientRect(), px=(ev.clientX-r.left)*W/r.width;
+      var i=Math.max(0,Math.min(pts.length-1,Math.round((px-L)/((W-L-Rt)/(pts.length-1))))), p=pts[i];
+      cx.setAttribute('x1',x(i));cx.setAttribute('x2',x(i));cx.setAttribute('visibility','visible');
+      cd.setAttribute('cx',x(i));cd.setAttribute('cy',y(p.v));
+      tip.hidden=false;tip.textContent=fmtM(p.d)+': '+p.v+' employees';
+      tip.style.left=Math.max(70,Math.min(r.width-70,x(i)*r.width/W))+'px';tip.style.top=(y(p.v)*r.height/H)+'px';
+    }
+    $('hit').addEventListener('pointermove',move);$('hit').addEventListener('pointerdown',move);
+    $('hit').addEventListener('pointerleave',function(){tip.hidden=true;cx.setAttribute('visibility','hidden');cd.setAttribute('cx',x(pts.length-1));cd.setAttribute('cy',y(pts[pts.length-1].v))});
+  }
+
+  // ---------- drill-through ----------
+  function drill(title,list){
+    $('dTitle').textContent=title;
+    $('dCount').textContent=list.length+(list.length===1?' employee':' employees')+(fLoc.value?' · '+fLoc.value:'');
+    $('dBody').innerHTML=list.length?list.map(function(e){
+      return '<tr><td>'+esc(e.name)+'</td><td>'+esc(e.dep)+'</td><td>'+e.loc+'</td><td>'+fmtD(e.hire)+'</td><td>'+years(e).toFixed(1)+' yrs</td><td>'+(e.term?'<span class="pill l">Left '+fmtD(e.term)+'</span>':'<span class="pill a">Active</span>')+'</td></tr>'}).join('')
+      :'<tr><td colspan="6">No employees match this selection.</td></tr>';
+    $('dash').hidden=true;$('detail').hidden=false;window.scrollTo(0,0);$('back').focus();
+  }
+  $('back').addEventListener('click',function(){$('detail').hidden=true;$('dash').hidden=false;render()});
+  document.addEventListener('click',function(ev){var b=ev.target.closest('[data-a]');if(b&&actions[b.dataset.a])actions[b.dataset.a]()});
+  fLoc.addEventListener('change',render);fDep.addEventListener('change',render);
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){if(!$('dash').hidden)trend(scope())},150)});
+  render();
+})();
+</script>
+</body>
+</html>
